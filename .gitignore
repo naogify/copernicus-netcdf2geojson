@@ -1,0 +1,5 @@
+geojsons*/
+tiles*/
+venv
+*.nc
+*.geojson
