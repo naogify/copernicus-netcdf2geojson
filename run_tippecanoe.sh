@@ -1,70 +1,68 @@
 #!/bin/bash
-
-# スクリプトの堅牢性を高める設定 (エラー発生時に停止)
-set -e
+set -ex
 
 #---スクリプトの説明---
 # このスクリプトは、指定されたGeoJSONファイルを使用して、Tippecanoeを実行し、タイルを生成します。
-# GeoJSONファイルは、`geojsons_point`ディレクトリから取得し、生成されたタイルは、`tiles`ディレクトリに保存されます。  
-# run_tippecanoe_opt.sh との違いは、ズームレベル毎の軽量化をしません
+# Z0-3用のタイルは、`geojsons_point`ディレクトリから取得し、Z4-8用のタイルは、`geojsons_center_polygon`ディレクトリから取得します。
+# 生成されたタイルは、`tiles/2025-06-20T00:00:00Z/0.49`ディレクトリに保存されます。
+# また、`depths.json`と`times.json`ファイルも同じディレクトリにコピーされます。 
+#
+# run_tippecanoe.sh との違いは、ズームレベル毎の軽量化をします。
 
-# --- 設定 ---
-# GeoJSONファイルが格納されているルートディレクトリ
-GEOJSONS_ROOT="./geojsons_point"
+# 必要なパスを設定
+GEOJSONS_CENTER_POLYGON_ROOT="./geojsons_center_polygon/"
+GEOJSONS_CENTER_POLYGON="./geojsons_center_polygon/2025-06-20T00:00:00Z/0.49.geojson"
 
-# 生成したタイルを格納するルートディレクトリ
+
 TILES_ROOT="./tiles"
+TARGET_DIR="./tiles/2025-06-20T00:00:00Z/0.49"
 
+# TILES_ROOT　が存在したら削除
+if [ -d "$TILES_ROOT" ]; then
+  echo "既存の $TILES_ROOT ディレクトリを削除します..."
 
-# --- メイン処理 ---
-echo "タイル生成を開始します..."
+  TEMP_DIR="./temp_tiles_$(date +%s)"
+  mv "$TILES_ROOT" "$TEMP_DIR"
+  rm -rf "$TEMP_DIR" &
+fi
 
-# time/depth 構造のGeoJSONファイルを全探索
-# 例: ./geojsons_center_polygon/2025-06-11T00:00:00Z/0.49.geojson
-find "$GEOJSONS_ROOT" -type f -name "0.49.geojson" | while read -r geojson_path; do
-  
-  ### 変更点: パスから time と depth を抽出するロジック ###
-  
-  # ルートディレクトリ部分を除いた相対パスを取得
-  # 例: 2025-06-11T00:00:00Z/0.49.geojson
-  rel_path="${geojson_path#$GEOJSONS_ROOT/}"
+#TARGET_DIRのディレクトリを作成
+mkdir -p "$TARGET_DIR"
 
-  # 最初のスラッシュまでを「time」として抽出
-  # 例: 2025-06-11T00:00:00Z
-  time="${rel_path%%/*}"
+echo "処理中: $GEOJSONS_CENTER_POLYGON"
 
-  # 最初のスラッシュ以降（ファイル名）を取得
-  # 例: 0.49.geojson
-  depth_ext="${rel_path#*/}"
+simplified_polygon_geojson='./simplified_polygon.geojson'
 
-  # 拡張子 .geojson を取り除き「depth」を取得
-  # 例: 0.49
-  depth="${depth_ext%.geojson}"
+if [ -f $simplified_polygon_geojson ]; then
+  echo "$simplified_polygon_geojson が既に存在するためスキップします。"
+else
+  # Z4-8: geojsons_polygon
+  echo $simplified_polygon_geojson
+  jq '{
+    type: .type,
+    features: [.features[] | {
+      type: .type,
+      geometry: .geometry,
+      properties: { uo: .properties.uo, vo: .properties.vo, speed: .properties.speed, direction: .properties.direction }
+    }]
+  }' "$GEOJSONS_CENTER_POLYGON" > "$simplified_polygon_geojson"
+fi
 
-  ### 変更点: タイルの出力先ディレクトリ構造 ###
-  # time/depth の階層で出力ディレクトリを作成
-  OUT_DIR="${TILES_ROOT}/${time}/${depth}"
-  mkdir -p "$OUT_DIR"
+tippecanoe \
+  -e "$TARGET_DIR" \
+  -l current \
+  -Z1 -z12 \
+  "$simplified_polygon_geojson" \
+  --no-tile-compression \
+  --no-simplification-of-shared-nodes \
+  --grid-low-zooms \
+  --no-tile-size-limit \
+  --no-feature-limit \
+  --low-detail=7
 
-  echo "処理中: $geojson_path  ->  $OUT_DIR"
+rm "$simplified_polygon_geojson"
 
-  # tippecanoeでタイルを生成し、指定したディレクトリに出力 (-e)
-  tippecanoe \
-    -e "$OUT_DIR" \
-    -l current \
-    -Z0 -z8 \
-    "$geojson_path" \
-    --no-tile-size-limit \
-    --no-feature-limit \
-    -r1 \
-    --no-tile-compression
-done
+cp "$GEOJSONS_CENTER_POLYGON_ROOT/depths.json" "$TILES_ROOT/depths.json"
+cp "$GEOJSONS_CENTER_POLYGON_ROOT/times.json" "$TILES_ROOT/times.json"
 
-# --- 後処理 ---
-echo "メタデータファイルをコピーしています..."
-
-# depths.json と times.json をタイルのルートディレクトリにコピー
-cp "$GEOJSONS_ROOT/depths.json" "$TILES_ROOT/depths.json"
-cp "$GEOJSONS_ROOT/times.json" "$TILES_ROOT/times.json"
-
-echo "すべてのタイル生成が完了しました！ ✨"
+echo "完了！"
