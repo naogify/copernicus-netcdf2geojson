@@ -1,0 +1,20 @@
+{
+  "name": "copernicus-netcdf2geojson",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "install": "python -m venv venv && source venv/bin/activate",
+    "build": "python convert-data-depth-tile.py && bash run_tippecanoe.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naogify/copernicus-netcdf2geojson.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/naogify/copernicus-netcdf2geojson/issues"
+  },
+  "homepage": "https://github.com/naogify/copernicus-netcdf2geojson#readme"
+}

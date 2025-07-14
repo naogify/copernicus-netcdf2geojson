@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <title>深さ・時系列スライダーマップ</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css' />
+  <script src='https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js'></script>
+  <style>
+    html,
+    body,
+    #map {
+      width: 100%;
+      height: 100%;
+      padding: 0;
+      margin: 0;
+    }
+
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #fff;
+      padding: 10px 20px 10px 10px;
+      z-index: 10;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      font-size: 1rem;
+    }
+
+    .slider-label {
+      display: inline-block;
+      min-width: 3em;
+      font-weight: bold;
+      margin-left: 0.5em;
+    }
+
+    .slider-wrap {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="controls">
+    <div class="slider-wrap">
+      深さ:
+      <input type="range" id="depthSlider" min="0" step="1">
+      <span id="depthValue" class="slider-label"></span>
+    </div>
+    <div class="slider-wrap">
+      時間:
+      <input type="range" id="timeSlider" min="0" step="1">
+      <span id="timeValue" class="slider-label"></span>
+    </div>
+  </div>
+  <div id="map"></div>
+  <script>
+    const TILES_ROOT = "http://127.0.0.1:8080/tiles"; // サーバーから見たパスに変更可
+
+    // === 追加: 日付変換関数 ===
+    function formatIsoDatetimeUTC(str) {
+      // '20250525T000000Z' → '2025-05-25T00:00:00Z'
+      const iso = str.replace(
+        /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/,
+        "$1-$2-$3T$4:$5:$6Z"
+      );
+      const date = new Date(iso);
+
+      // UTCで値取得
+      const year = date.getUTCFullYear();
+      const month = ("0" + (date.getUTCMonth() + 1)).slice(-2);
+      const day = ("0" + date.getUTCDate()).slice(-2);
+      const hour = ("0" + date.getUTCHours()).slice(-2);
+      const min = ("0" + date.getUTCMinutes()).slice(-2);
+
+      return `${year}/${month}/${day} ${hour}:${min} UTC`;
+    }
+
+    let depths = [];
+    let times = [];
+
+    Promise.all([
+      fetch(`${TILES_ROOT}/depths.json`).then(res => res.json()),
+      fetch(`${TILES_ROOT}/times.json`).then(res => res.json()),
+    ]).then(([depthList, timeList]) => {
+      depths = depthList;
+      times = timeList;
+
+      // スライダー初期設定
+      const depthSlider = document.getElementById('depthSlider');
+      const timeSlider = document.getElementById('timeSlider');
+      depthSlider.max = depths.length - 1;
+      depthSlider.value = 0;
+      timeSlider.max = times.length - 1;
+      timeSlider.value = 0;
+
+      const depthValue = document.getElementById('depthValue');
+      const timeValue = document.getElementById('timeValue');
+      depthValue.textContent = `${depths[0]} m`;
+      timeValue.textContent = formatIsoDatetimeUTC(times[0]);
+
+      // 初期表示
+      initMap(0, 0);
+
+      // スライダーイベント
+      depthSlider.addEventListener('input', function () {
+        const depthIdx = parseInt(this.value, 10);
+        depthValue.textContent = `${depths[depthIdx]} m`;
+        updateSource(depthIdx, parseInt(timeSlider.value, 10));
+      });
+
+      timeSlider.addEventListener('input', function () {
+        const timeIdx = parseInt(this.value, 10);
+        timeValue.textContent = formatIsoDatetimeUTC(times[timeIdx]);
+        updateSource(parseInt(depthSlider.value, 10), timeIdx);
+      });
+    });
+
+    let map;
+    let popup; // ← ポップアップ保持用
+    let currentDepthIdx, currentTimeIdx;
+
+    function getTileSource(depthIdx, timeIdx) {
+      const depth = depths[depthIdx];
+      const time = times[timeIdx];
+      return {
+        type: "vector",
+        tiles: [
+          `${TILES_ROOT}/${time}/${depth}/{z}/{x}/{y}.pbf`
+          // `https://d3ladc09mpyc4n.cloudfront.net/tiles/${time}/${depth}/{z}/{x}/{y}.pbf`
+        ],
+        minzoom: 0,
+        maxzoom: 8,
+        attribution: '<a href="https://doi.org/10.48670/moi-00016">Generated using E.U. Copernicus Marine Service Information</a>'
+      };
+    }
+
+    function initMap(depthIdx, timeIdx) {
+      currentDepthIdx = depthIdx;
+      currentTimeIdx = timeIdx;
+      map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://cdn.geolonia.com/style/geolonia/midnight/ja.json',
+        center: [135.0, 35.0],
+        minzoom: 0,
+        zoom: 5,
+        hash: true
+      });
+
+      map.on('load', function () {
+        map.setProjection({
+          type: 'globe', // Set projection to globe
+        });
+
+        addCurrentLayer();
+
+        // ★ クリックイベントで属性表示
+        map.on('click', function (e) {
+          // const features = map.queryRenderedFeatures(e.point, { layers: ['current-layer-polygon', 'current-layer-point'] });
+          const features = map.queryRenderedFeatures(e.point, { layers: ['current-layer-polygon'] });
+          if (features && features.length > 0) {
+            const props = features[0].properties;
+            // プロパティをtableで見やすく整形
+            let html = '<table>';
+            for (const key in props) {
+              html += `<tr><th style="text-align:left;padding:2px 6px 2px 2px">${key}</th><td style="padding:2px 2px 2px 6px">${props[key]}</td></tr>`;
+            }
+            html += '</table>';
+            // 既存ポップアップ閉じる
+            if (popup) popup.remove();
+            popup = new maplibregl.Popup()
+              .setLngLat(e.lngLat)
+              .setHTML(html)
+              .addTo(map);
+          }
+        });
+      });
+    }
+
+    function updateSource(depthIdx, timeIdx) {
+      currentDepthIdx = depthIdx;
+      currentTimeIdx = timeIdx;
+
+      if (map.getLayer('current-layer-polygon')) map.removeLayer('current-layer-polygon');
+      // if (map.getLayer('current-layer-point')) map.removeLayer('current-layer-point');
+      if (map.getSource('current')) map.removeSource('current');
+      if (popup) popup.remove(); // ポップアップも消す
+
+      addCurrentLayer();
+    }
+
+    function addCurrentLayer() {
+      map.addSource('current', getTileSource(currentDepthIdx, currentTimeIdx));
+      map.addLayer({
+        'id': 'current-layer-polygon',
+        'type': 'fill',
+        'source': 'current',
+        'source-layer': 'current',
+        'filter': ['==', ['geometry-type'], 'Polygon'],
+        'minzoom': 0,
+        'paint': {
+          'fill-color': [
+            'interpolate', ['linear'], ['get', 'speed'],
+            0, '#4575b4',
+            0.5, '#91bfdb',
+            1.0, '#e0f3f8',
+            1.5, '#ffffbf',
+            2.0, '#fee090',
+            3.0, '#fc8d59',
+            5.0, '#d73027'
+          ],
+          'fill-opacity': 0.6
+        }
+      });
+      map.addLayer({
+        'id': 'current-layer-point',
+        'type': 'circle',
+        'source': 'current',
+        'source-layer': 'current',
+        'filter': ['==', ['geometry-type'], 'Point'],
+        'minzoom': 0,
+        'maxzoom': 1,
+        'paint': {
+          'circle-radius': 2,
+          'circle-opacity': 0.8,
+          'circle-color': [
+            'interpolate', ['linear'], ['get', 'speed'],
+            0, '#4575b4',
+            0.5, '#91bfdb',
+            1.0, '#e0f3f8',
+            1.5, '#ffffbf',
+            2.0, '#fee090',
+            3.0, '#fc8d59',
+            5.0, '#d73027'
+          ]
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
