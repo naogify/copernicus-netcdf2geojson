@@ -48,12 +48,12 @@ else
   }' "$GEOJSONS_CENTER_POLYGON" > "$simplified_polygon_geojson"
 fi
 
+# ローカルで表示確認する時は、--no-tile-compression \ を追加する
 tippecanoe \
   -e "$TARGET_DIR" \
   -l current \
   -Z1 -z12 \
   "$simplified_polygon_geojson" \
-  --no-tile-compression \
   --no-simplification-of-shared-nodes \
   --grid-low-zooms \
   --no-tile-size-limit \
