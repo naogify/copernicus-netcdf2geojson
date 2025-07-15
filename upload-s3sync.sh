@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -ex
 
+# --- NOTE: S3の設定 ---
+# aws configure set default.s3.max_concurrent_requests 100 を指定することで、
+# S3へのアップロードを並列で行うことができます。必要に応じてデフォルト値を変更してください。 
+
 # 1番目の引数がなければエラー
 if [ -z "$1" ]; then
   echo "Usage: $0 <UPLOAD_DIR> <S3_BUCKET_URL>"
