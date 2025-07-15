@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "install": "python -m venv venv && source venv/bin/activate",
-    "build": "python convert-data-depth-tile-polygon.py && bash run_tippecanoe.sh"
+    "build": "python convert-data-depth-tile-polygon.py && bash run_tippecanoe.sh",
+    "upload": "bash upload-s3sync.sh ./GLOBAL_ANALYSISFORECAST_PHY_001_024 s3://copernicus-nature-tiles"
   },
   "repository": {
     "type": "git",

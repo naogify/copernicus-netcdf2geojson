@@ -4,3 +4,5 @@ venv
 *.nc
 *.geojson
 glo12_rg_6h-i_20250620-00h_3D-uovo_fcst_R20250610.nc
+.envrc
+GLOBAL_ANALYSISFORECAST_PHY_001_024
