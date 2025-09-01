@@ -52,15 +52,18 @@ fi
 tippecanoe \
   -e "$TARGET_DIR" \
   -l current \
-  -Z1 -z12 \
+  -Z0 -z4 \
   "$simplified_polygon_geojson" \
-  --no-simplification-of-shared-nodes \
   --grid-low-zooms \
+  --low-detail=8 \
   --no-tile-size-limit \
   --no-feature-limit \
-  --low-detail=7
+  --detect-longitude-wraparound \
+  --use-source-polygon-winding \
+  --coalesce \
+  --no-tile-compression
 
-rm "$simplified_polygon_geojson"
+# rm "$simplified_polygon_geojson"
 
 cp "$GEOJSONS_CENTER_POLYGON_ROOT/depths.json" "$TILES_ROOT/depths.json"
 cp "$GEOJSONS_CENTER_POLYGON_ROOT/times.json" "$TILES_ROOT/times.json"

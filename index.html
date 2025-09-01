@@ -132,7 +132,7 @@
           // `https://d3ladc09mpyc4n.cloudfront.net/tiles/${time}/${depth}/{z}/{x}/{y}.pbf`
         ],
         minzoom: 0,
-        maxzoom: 8,
+        maxzoom: 4,
         attribution: '<a href="https://doi.org/10.48670/moi-00016">Generated using E.U. Copernicus Marine Service Information</a>'
       };
     }
@@ -146,13 +146,16 @@
         center: [135.0, 35.0],
         minzoom: 0,
         zoom: 5,
-        hash: true
+        hash: true,
+        grid: true
       });
 
+      map.showTileBoundaries = true;
+
       map.on('load', function () {
-        map.setProjection({
-          type: 'globe', // Set projection to globe
-        });
+        // map.setProjection({
+        //   type: 'globe', // Set projection to globe
+        // });
 
         addCurrentLayer();
 
@@ -200,6 +203,7 @@
         'source-layer': 'current',
         'filter': ['==', ['geometry-type'], 'Polygon'],
         'minzoom': 0,
+        'maxzoom': 14,
         'paint': {
           'fill-color': [
             'interpolate', ['linear'], ['get', 'speed'],
@@ -213,30 +217,7 @@
           ],
           'fill-opacity': 0.6
         }
-      });
-      map.addLayer({
-        'id': 'current-layer-point',
-        'type': 'circle',
-        'source': 'current',
-        'source-layer': 'current',
-        'filter': ['==', ['geometry-type'], 'Point'],
-        'minzoom': 0,
-        'maxzoom': 1,
-        'paint': {
-          'circle-radius': 2,
-          'circle-opacity': 0.8,
-          'circle-color': [
-            'interpolate', ['linear'], ['get', 'speed'],
-            0, '#4575b4',
-            0.5, '#91bfdb',
-            1.0, '#e0f3f8',
-            1.5, '#ffffbf',
-            2.0, '#fee090',
-            3.0, '#fc8d59',
-            5.0, '#d73027'
-          ]
-        }
-      });
+      })
     }
   </script>
 </body>

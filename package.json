@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "install": "python -m venv venv && source venv/bin/activate",
     "build": "python convert-data-depth-tile-polygon.py && bash run_tippecanoe.sh",
     "upload": "bash upload-s3sync.sh ./GLOBAL_ANALYSISFORECAST_PHY_001_024 s3://copernicus-nature-tiles"
   },
-  "repository": {
+  "repository": { 
     "type": "git",
     "url": "git+https://github.com/naogify/copernicus-netcdf2geojson.git"
   },
@@ -17,5 +18,10 @@
   "bugs": {
     "url": "https://github.com/naogify/copernicus-netcdf2geojson/issues"
   },
-  "homepage": "https://github.com/naogify/copernicus-netcdf2geojson#readme"
+  "homepage": "https://github.com/naogify/copernicus-netcdf2geojson#readme",
+  "dependencies": {
+    "@mapbox/vector-tile": "^2.0.4",
+    "geojsonhint": "^2.0.0",
+    "pbf": "^4.0.1"
+  }
 }
