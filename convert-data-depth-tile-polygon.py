@@ -9,9 +9,6 @@ from tqdm import tqdm
 nc_path = 'glo12_rg_6h-i_20250620-00h_3D-uovo_fcst_R20250610.nc'
 output_dir = './geojsons_center_polygon'
 WEB_MERCATOR_LAT_LIMIT = 85.0511  # Webメルカトルの緯度上限（必要な場合のみ有効）
-# 指定の空間範囲（Copernicus product spec）
-EXT_LAT_MIN, EXT_LAT_MAX = -80.0, 90.0
-EXT_LON_MIN, EXT_LON_MAX = -180.0, 179.92
 
 # --- データ読み込み ---
 ds = xr.open_dataset(nc_path)
@@ -69,10 +66,6 @@ for time_i, time_label in tqdm(list(enumerate(time_list)), desc="Time loop"):
             lat_bottom = lat_c - dlat/2
             lat_top    = lat_c + dlat/2
 
-            # まず product の緯度範囲を厳密チェック（セル四隅で判定）
-            if not (EXT_LAT_MIN <= lat_bottom and lat_top <= EXT_LAT_MAX):
-                continue
-
             # Webメルカトルで描く場合の安全域（必要な人だけ有効）
             if (lat_top > WEB_MERCATOR_LAT_LIMIT) or (lat_bottom < -WEB_MERCATOR_LAT_LIMIT):
                 continue
@@ -81,10 +74,6 @@ for time_i, time_label in tqdm(list(enumerate(time_list)), desc="Time loop"):
                 lon_c = float(lons[j])
                 lon_left  = lon_c - dlon/2
                 lon_right = lon_c + dlon/2
-
-                # Product の経度範囲を厳密チェック（セル四隅で判定）
-                if not (EXT_LON_MIN <= lon_left and lon_right <= EXT_LON_MAX):
-                    continue
 
                 u = float(uo[i, j])
                 v = float(vo[i, j])
@@ -113,7 +102,7 @@ for time_i, time_label in tqdm(list(enumerate(time_list)), desc="Time loop"):
                         "direction": float(round(direction, 2)),
                         "depth": float(depth_val),
                         "time": str(time_label)
-                    }
+                    },
                 }
                 features.append(feature)
 

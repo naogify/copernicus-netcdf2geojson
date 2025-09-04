@@ -31,29 +31,29 @@ mkdir -p "$TARGET_DIR"
 
 echo "処理中: $GEOJSONS_CENTER_POLYGON"
 
-simplified_polygon_geojson='./simplified_polygon.geojson'
+# simplified_polygon_geojson='./simplified_polygon.geojson'
 
-if [ -f $simplified_polygon_geojson ]; then
-  echo "$simplified_polygon_geojson が既に存在するためスキップします。"
-else
-  # Z4-8: geojsons_polygon
-  echo $simplified_polygon_geojson
-  jq '{
-    type: .type,
-    features: [.features[] | {
-      type: .type,
-      geometry: .geometry,
-      properties: { uo: .properties.uo, vo: .properties.vo, speed: .properties.speed, direction: .properties.direction }
-    }]
-  }' "$GEOJSONS_CENTER_POLYGON" > "$simplified_polygon_geojson"
-fi
+# if [ -f $simplified_polygon_geojson ]; then
+#   echo "$simplified_polygon_geojson が既に存在するためスキップします。"
+# else
+#   # Z4-8: geojsons_polygon
+#   echo $simplified_polygon_geojson
+#   jq '{
+#     type: .type,
+#     features: [.features[] | {
+#       type: .type,
+#       geometry: .geometry,
+#       properties: { uo: .properties.uo, vo: .properties.vo, speed: .properties.speed, direction: .properties.direction }
+#     }]
+#   }' "$GEOJSONS_CENTER_POLYGON" > "$simplified_polygon_geojson"
+# fi
 
 # ローカルで表示確認する時は、--no-tile-compression \ を追加する
 tippecanoe \
   -e "$TARGET_DIR" \
   -l current \
   -Z0 -z4 \
-  "$simplified_polygon_geojson" \
+  "$GEOJSONS_CENTER_POLYGON" \
   --grid-low-zooms \
   --low-detail=8 \
   --no-tile-size-limit \
